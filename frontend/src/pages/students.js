@@ -604,7 +604,6 @@ export async function renderStudentsPage() {
 
         const onSubmitHandler = async (formData) => {
             try {
-                // Assign section automatically based on current view
                 formData.sectionId = state.selectedSectionId;
 
                 if (isEditing) {
@@ -612,12 +611,14 @@ export async function renderStudentsPage() {
                     showToast("Student updated successfully!", "success");
                 } else {
                     const newStudent = await apiService.create("students", formData);
-                    // --- SOLUTION ---
-                    // Check if newStudent was created before proceeding
+                    
+                    // --- SOLUTION: Check if student creation was successful ---
                     if (!newStudent) {
                         showToast("Could not create student. Please check network and try again.", "error");
                         return; // Stop execution if student creation failed
                     }
+                    // --- End of Solution ---
+
                     await apiService.create("users", {
                         name: newStudent.name,
                         email: newStudent.email,
@@ -653,7 +654,6 @@ export async function renderStudentsPage() {
             }
             : null;
 
-        // Ensure we pass an object, not null, to the form modal
         openFormModal(title, formFields, onSubmitHandler, studentData || {}, onDeleteHandler);
     };
 

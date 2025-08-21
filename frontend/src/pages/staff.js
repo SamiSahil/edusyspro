@@ -28,7 +28,6 @@ export async function renderStaffPage() {
         ],
         searchKeys: ['name', 'role', 'email'],
         hideAddButton: true, // We use a custom button
-        // --- THIS IS THE KEY CHANGE: Add a custom action column for the edit button ---
         hideActions: true, // Hide the default action column
         formFields: [
             { name: 'name', label: 'Full Name', type: 'text', required: true },
@@ -44,7 +43,7 @@ export async function renderStaffPage() {
                 <button id="add-staff-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2"><i class="fas fa-plus"></i> Add Staff</button>
             ` : ''}
         `,
-        // --- THIS IS THE SECOND KEY CHANGE: Add the listener for the edit button ---
+        // Custom listeners allow us to define behavior for our new buttons
         customListeners: (items) => {
             if (currentUser.role === 'Admin') {
                 document.getElementById('add-staff-btn')?.addEventListener('click', () => {

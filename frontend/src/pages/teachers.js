@@ -251,7 +251,6 @@ export async function renderTeachersPage() {
         if (!isEditing) { formFields.push({ name: 'password', label: 'Initial Password', type: 'password', required: true }); }
         
         const onSubmit = async (formData) => {
-            // Automatically assign the current department if adding a new teacher
             if (!isEditing) {
                 formData.departmentId = state.selectedDeptId;
             }
@@ -262,12 +261,14 @@ export async function renderTeachersPage() {
                     showToast('Teacher updated successfully!', 'success');
                 } else {
                     const newTeacher = await apiService.create('teachers', formData);
-                    // --- SOLUTION ---
-                    // Check if newTeacher was created before proceeding
+                    
+                    // --- SOLUTION: Check if teacher creation was successful ---
                     if (!newTeacher) {
                         showToast("Could not create teacher. Please check network and try again.", "error");
                         return; // Stop execution if teacher creation failed
                     }
+                    // --- End of Solution ---
+
                     await apiService.create('users', {
                         name: newTeacher.name,
                         email: newTeacher.email,
@@ -279,7 +280,7 @@ export async function renderTeachersPage() {
                 }
                 
                 await store.refresh('teachers');
-                await store.refresh('users'); // Also refresh users
+                await store.refresh('users');
                 closeAnimatedModal(ui.modal);
                 mainRender();
 
