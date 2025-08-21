@@ -1,11 +1,18 @@
+// frontend/src/utils/helpers.js
+
 import { apiService } from '../apiService.js';
 import { renderStaffPage } from '../pages/staff.js';
 import { renderStudentsPage } from '../pages/students.js';
 import { renderTeachersPage } from '../pages/teachers.js';
 import { store } from '../store.js';
 import { currentUser, ui } from '../ui.js';
-// This function needs to be added to helpers.js
 import { renderNoticesPage } from '../pages/notices.js';
+
+// Your API base URL
+const API_BASE_URL = 'https://smsv2-liart.vercel.app';
+
+// Safely compose URLs (ensures single slash between base and path)
+const apiUrl = (path) => `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;
 
 export function getSkeletonLoaderHTML(type = 'table') {
     if (type === 'dashboard') {
@@ -35,25 +42,41 @@ export function getSkeletonLoaderHTML(type = 'table') {
     `;
 }
 
-// in frontend/src/utils/helpers.js
+// --- THIS FUNCTION WAS REPLACED TO USE FETCH AND YOUR API BASE URL ---
+export async function openAdvancedMessageModal(replyToUserId = null, replyToUserName = null) {
+    const classes = store.get('classes') || [];
+    const teacherMap = store.getMap('teachers') || new Map();
+    const studentsMap = store.getMap('students') || new Map();
 
-// ... (keep all the other functions in this file the same) ...
+    // Get users list robustly from store (fixes Object.values('users') bug)
+    let users = [];
+    const usersFromStore = store.get('users');
+    if (Array.isArray(usersFromStore)) {
+        users = usersFromStore;
+    } else {
+        const usersMap = store.getMap('users');
+        if (usersMap && typeof usersMap.values === 'function') {
+            users = Array.from(usersMap.values());
+        }
+    }
 
-// --- THIS IS THE FUNCTION TO REPLACE ---
-export 
-async function openAdvancedMessageModal(replyToUserId = null, replyToUserName = null) {
-    const classes = store.get('classes');
-    const teacherMap = store.getMap('teachers');
-    const studentsMap = store.getMap('students');
-    const allStaff = Object.values('users')
-        .filter(user => user.role !== 'Student')
+    const allStaff = users
+        .filter(user => user.role && user.role !== 'Student')
         .map(user => {
             let staffName = user.name || 'Unnamed Staff';
+            let staffTargetId = user.id || user.email || user.username;
+
             if (user.role === 'Teacher' && user.teacherId) {
                 const teacherDetails = teacherMap.get(user.teacherId);
-                if (teacherDetails) staffName = teacherDetails.name;
+                if (teacherDetails) {
+                    staffName = teacherDetails.name || staffName;
+                    staffTargetId = teacherDetails.id || user.teacherId;
+                } else {
+                    staffTargetId = user.teacherId;
+                }
             }
-            return { id: user.email, name: staffName, role: user.role };
+
+            return { id: String(staffTargetId), name: staffName, role: user.role };
         });
 
     let modalTitle = 'Send New Notice / Message';
@@ -95,7 +118,6 @@ async function openAdvancedMessageModal(replyToUserId = null, replyToUserName = 
         groupedOptions['Direct to Student'].push({ value: replyToUserId, label: `${replyToUserName} (Student)` });
     }
 
-
     const optionsHtml = Object.entries(groupedOptions)
         .filter(([_, options]) => options.length > 0)
         .map(([group, options]) => `<optgroup label="${group}">${options.map(opt => `<option value="${opt.value}" ${isReply && opt.value === replyToUserId ? 'selected' : ''}>${opt.label}</option>`).join('')}</optgroup>`)
@@ -117,29 +139,29 @@ async function openAdvancedMessageModal(replyToUserId = null, replyToUserName = 
             type: isPrivate ? 'private_message' : 'notice'
         };
 
-        await apiService.create('notices', noticeData);
+        // POST to your hosted API
+        const result = await fetchWithErrorHandling(apiUrl('/api/notices'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(noticeData)
+        });
+
+        if (!result) return;
+
         showToast(`Message sent successfully!`, 'success');
 
-        // Refresh the notice board if it's the current page
         if (document.getElementById('notice-list-container')) {
             renderNoticesPage();
         }
     });
 
-    // If it is a reply, disable the recipient dropdown
     if (isReply) {
-         setTimeout(() => { // Use timeout to ensure element exists in DOM
+         setTimeout(() => {
             const targetSelect = document.getElementById('target');
             if (targetSelect) targetSelect.disabled = true;
         }, 100);
     }
 }
-
-
-
-// ... (keep the rest of the functions in helpers.js the same) ...
-
-// ... (keep the rest of the functions in helpers.js the same) ...
 
 export function timeAgo(dateString) {
     const date = new Date(dateString);
@@ -179,12 +201,10 @@ export function createNoticeCard(notice, authorName) {
     const isPrivateMessage = notice.type === 'private_message';
     const allUsersMap = new Map([...store.getMap('students'), ...store.getMap('teachers')]);
 
-    // --- ENHANCED AUDIENCE LOGIC ---
     if (isPrivateMessage) {
-        // For private messages, find the recipient's name
         const recipientName = allUsersMap.get(notice.target)?.name || 'a specific user';
         audienceText = `Private to: ${recipientName}`;
-        borderColorClass = 'border-purple-500'; // Purple for private
+        borderColorClass = 'border-purple-500';
     } else if (notice.target === 'All') {
         audienceText = 'For: Everyone';
         borderColorClass = 'border-blue-500';
@@ -199,20 +219,17 @@ export function createNoticeCard(notice, authorName) {
         audienceText = `For: ${className}`;
         borderColorClass = 'border-red-500';
     } else {
-        audienceText = `For: ${notice.target}`; // Fallback
+        audienceText = `For: ${notice.target}`;
         borderColorClass = 'border-teal-500';
     }
 
-    // --- ENHANCED ACTION BUTTONS LOGIC ---
     let actionButtonsHtml = '';
-    // Show a reply button if I am the teacher who received a private message from a student
     if (currentUser.role === 'Teacher' && isPrivateMessage && notice.authorId !== currentUser.id) {
         const authorIsStudent = store.getMap('students').has(notice.authorId);
         if (authorIsStudent) {
             actionButtonsHtml += `<button class="text-blue-400 hover:text-blue-300 reply-btn p-1" title="Reply" data-author-id="${notice.authorId}" data-author-name="${authorName}"><i class="fas fa-reply fa-fw"></i></button>`;
         }
     }
-    // Allow deletion if I am the author OR I am an Admin
     if (currentUser.role === 'Admin' || currentUser.id === notice.authorId) {
         actionButtonsHtml += `<button class="text-red-500 hover:text-red-400 delete-btn p-1 ml-2" title="Delete" data-id="${notice.id}"><i class="fas fa-trash-alt fa-fw"></i></button>`;
     }
@@ -421,7 +438,6 @@ export function openBulkInsertModal(collectionName, title, requiredFields, examp
         processBtn.disabled = true;
         processBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
 
-        // Frontend validation
         const validRecords = [];
         const invalidRecords = [];
         for (const record of parsedData) {
@@ -443,7 +459,12 @@ export function openBulkInsertModal(collectionName, title, requiredFields, examp
             return;
         }
 
-        const result = await apiService.bulkCreate(collectionName, validRecords);
+        // POST to your hosted API (bulk insert)
+        const result = await fetchWithErrorHandling(apiUrl(`/api/${collectionName}/bulk`), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(validRecords)
+        });
 
         if (result && result.success) {
             feedbackDiv.innerHTML = `
@@ -452,7 +473,6 @@ export function openBulkInsertModal(collectionName, title, requiredFields, examp
                 <p class="text-yellow-400">Failed due to validation errors: ${result.failedCount}</p>
             `;
             showToast('Bulk import completed!', 'success');
-            // Re-render the page to show the new data
             if (collectionName === 'students') renderStudentsPage();
             if (collectionName === 'teachers') renderTeachersPage();
             if (collectionName === 'users') renderStaffPage();
@@ -460,6 +480,8 @@ export function openBulkInsertModal(collectionName, title, requiredFields, examp
             feedbackDiv.innerHTML = `<span class="text-red-400">An error occurred on the server.</span>`;
             processBtn.innerHTML = 'Process File';
         }
+
+        processBtn.disabled = false;
     };
 }
 
@@ -499,31 +521,26 @@ export function calculateOverdueDays(dueDate) {
     if (!dueDate) return 0;
     const due = new Date(dueDate);
     const today = new Date();
-    // Reset time to midnight to compare dates only
     today.setHours(0, 0, 0, 0);
     due.setHours(0, 0, 0, 0);
 
     if (today <= due) {
-        return 0; // Not overdue
+        return 0;
     }
-    // Calculate the difference in milliseconds and convert to days
     const differenceInTime = today.getTime() - due.getTime();
     return Math.ceil(differenceInTime / (1000 * 3600 * 24));
 }
 
-export function createUpcomingExamCard(exam) { // <-- Now takes the whole exam object
-    // --- BUG FIX 1: Access the populated subject name directly ---
+export function createUpcomingExamCard(exam) {
     const subjectName = exam.subjectId?.name || 'N/A';
-
-    // --- BUG FIX 2: Format the date and time correctly ---
     const eventDate = new Date(exam.date);
     const date = eventDate.getDate();
     const month = eventDate.toLocaleString('default', { month: 'short' });
 
-    // Convert 24-hour time to 12-hour AM/PM format
-    const [hours, minutes] = exam.time.split(':');
+    const [hoursStr, minutes] = exam.time.split(':');
+    const hours = Number(hoursStr);
     const ampm = hours >= 12 ? 'PM' : 'AM';
-    const formattedHours = hours % 12 || 12; // Convert "0" to "12"
+    const formattedHours = hours % 12 || 12;
     const formattedTime = `${formattedHours}:${minutes} ${ampm}`;
 
     return `
@@ -603,7 +620,6 @@ export function closeAnimatedModal(modalElement) {
 export function showConfirmationModal(text, onConfirm) {
     ui.confirmText.textContent = text;
 
-    // Replace the button's event listener to avoid multiple triggers
     const oldBtn = ui.confirmYesBtn;
     const newBtn = oldBtn.cloneNode(true);
     oldBtn.parentNode.replaceChild(newBtn, oldBtn);
@@ -654,8 +670,12 @@ export function openChangePasswordModal() {
         if (newPassword !== confirmPassword) { showToast('New passwords do not match.', 'error'); return; }
         if (newPassword === currentPassword) { showToast('New password cannot be the same as the old one.', 'error'); return; }
 
+        // Local check using existing apiService (no network)
         const storedPassword = apiService.users[currentUser.username]?.password;
-        if (currentPassword !== storedPassword) { showToast('Incorrect current password.', 'error'); return; }
+        if (storedPassword !== undefined && currentPassword !== storedPassword) { 
+            showToast('Incorrect current password.', 'error'); 
+            return; 
+        }
 
         apiService.users[currentUser.username].password = newPassword;
         await apiService.save();
