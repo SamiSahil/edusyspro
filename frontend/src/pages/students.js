@@ -612,6 +612,12 @@ export async function renderStudentsPage() {
                     showToast("Student updated successfully!", "success");
                 } else {
                     const newStudent = await apiService.create("students", formData);
+                    // --- SOLUTION ---
+                    // Check if newStudent was created before proceeding
+                    if (!newStudent) {
+                        showToast("Could not create student. Please check network and try again.", "error");
+                        return; // Stop execution if student creation failed
+                    }
                     await apiService.create("users", {
                         name: newStudent.name,
                         email: newStudent.email,

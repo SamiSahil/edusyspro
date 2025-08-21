@@ -3,7 +3,6 @@
 import { apiService } from '../apiService.js';
 import { store } from '../store.js';
 import { ui } from '../ui.js';
-// --- THIS IS THE FIX: 'debounce' has been added to the import list ---
 import { closeAnimatedModal, generateInitialsAvatar, openBulkInsertModal, openFormModal, showConfirmationModal, showToast, debounce } from '../utils/helpers.js';
 
 export async function renderTeachersPage() {
@@ -250,13 +249,57 @@ export async function renderTeachersPage() {
             { name: 'baseSalary', label: 'Base Salary (BDT)', type: 'number' },
         ];
         if (!isEditing) { formFields.push({ name: 'password', label: 'Initial Password', type: 'password', required: true }); }
+        
         const onSubmit = async (formData) => {
-            if (!isEditing) { formData.departmentId = state.selectedDeptId; }
-            if (isEditing) {
-                if (await apiService.update('teachers', teacherData.id, formData)) { showToast('Teacher updated successfully!', 'success'); await store.refresh('teachers'); await store.refresh('users'); mainRender(); }
-            } else { const newTeacher = await apiService.create('teachers', formData); if (newTeacher) { showToast('Teacher added successfully!', 'success'); await store.refresh('teachers'); await store.refresh('users'); mainRender(); } }
+            // Automatically assign the current department if adding a new teacher
+            if (!isEditing) {
+                formData.departmentId = state.selectedDeptId;
+            }
+
+            try {
+                if (isEditing) {
+                    await apiService.update('teachers', teacherData.id, formData);
+                    showToast('Teacher updated successfully!', 'success');
+                } else {
+                    const newTeacher = await apiService.create('teachers', formData);
+                    // --- SOLUTION ---
+                    // Check if newTeacher was created before proceeding
+                    if (!newTeacher) {
+                        showToast("Could not create teacher. Please check network and try again.", "error");
+                        return; // Stop execution if teacher creation failed
+                    }
+                    await apiService.create('users', {
+                        name: newTeacher.name,
+                        email: newTeacher.email,
+                        password: formData.password,
+                        role: 'Teacher',
+                        teacherId: newTeacher.id,
+                    });
+                    showToast('Teacher added successfully!', 'success');
+                }
+                
+                await store.refresh('teachers');
+                await store.refresh('users'); // Also refresh users
+                closeAnimatedModal(ui.modal);
+                mainRender();
+
+            } catch (error) {
+                showToast("Operation failed.", "error");
+                console.error("Form submission error:", error);
+            }
         };
-        const onDelete = isEditing ? async () => { showConfirmationModal(`Delete ${teacherData.name}?`, async () => { if (await apiService.remove('teachers', teacherData.id)) { showToast('Teacher deleted.', 'success'); closeAnimatedModal(ui.modal); await store.refresh('teachers'); mainRender(); } }); } : null;
+
+        const onDelete = isEditing ? async () => { 
+            showConfirmationModal(`Delete ${teacherData.name}?`, async () => { 
+                if (await apiService.remove('teachers', teacherData.id)) { 
+                    showToast('Teacher deleted.', 'success'); 
+                    closeAnimatedModal(ui.modal); 
+                    await store.refresh('teachers'); 
+                    mainRender(); 
+                } 
+            }); 
+        } : null;
+        
         openFormModal(title, formFields, onSubmit, teacherData || {}, onDelete);
     };
 
