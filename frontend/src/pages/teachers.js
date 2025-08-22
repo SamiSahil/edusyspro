@@ -249,45 +249,45 @@ export async function renderTeachersPage() {
         if (!isEditing) { formFields.push({ name: 'password', label: 'Initial Password', type: 'password', required: true }); }
         
         const onSubmit = async (formData) => {
-            if (!isEditing) {
-                formData.departmentId = state.selectedDeptId;
+    if (!isEditing) {
+        formData.departmentId = state.selectedDeptId;
+    }
+
+    try {
+        if (isEditing) {
+            await apiService.update('teachers', teacherData.id, formData);
+            showToast('Teacher updated successfully!', 'success');
+        } else {
+            const newTeacher = await apiService.create('teachers', formData);
+
+            // --- THIS IS THE FIX ---
+            if (!newTeacher || !newTeacher.id) {
+                showToast("Could not create teacher. Please check required fields and network.", "error");
+                return; // Stop execution if teacher creation failed
             }
+            // --- END OF FIX ---
 
-            try {
-                if (isEditing) {
-                    await apiService.update('teachers', teacherData.id, formData);
-                    showToast('Teacher updated successfully!', 'success');
-                } else {
-                    const newTeacher = await apiService.create('teachers', formData);
-                    
-                    // --- THIS IS THE FIX ---
-                    // It checks if teacher creation was successful before proceeding.
-                    if (!newTeacher || !newTeacher.id) {
-                        showToast("Could not create teacher. Please check required fields and network.", "error");
-                        return; // Stop execution if teacher creation failed
-                    }
-                    // --- END OF FIX ---
+            await apiService.create('users', {
+                name: newTeacher.name,
+                email: newTeacher.email,
+                password: formData.password,
+                role: 'Teacher',
+                teacherId: newTeacher.id,
+            });
+            showToast('Teacher added successfully!', 'success');
+        }
 
-                    await apiService.create('users', {
-                        name: newTeacher.name,
-                        email: newTeacher.email,
-                        password: formData.password,
-                        role: 'Teacher',
-                        teacherId: newTeacher.id,
-                    });
-                    showToast('Teacher added successfully!', 'success');
-                }
-                
-                await store.refresh('teachers');
-                await store.refresh('users');
-                closeAnimatedModal(ui.modal);
-                mainRender();
+        await store.refresh('teachers');
+        await store.refresh('users');
+        closeAnimatedModal(ui.modal);
+        mainRender();
 
-            } catch (error) {
-                showToast("Operation failed.", "error");
-                console.error("Form submission error:", error);
-            }
-        };
+    } catch (error) {
+        showToast("Operation failed.", "error");
+        console.error("Form submission error:", error);
+    }
+};
+
 
         const onDelete = isEditing ? async () => { 
             showConfirmationModal(`Delete ${teacherData.name}?`, async () => { 

@@ -602,41 +602,42 @@ export async function renderStudentsPage() {
             formFields.push({ name: "password", label: "Initial Password", type: "password", required: true });
         }
 
-        const onSubmitHandler = async (formData) => {
-            try {
-                formData.sectionId = state.selectedSectionId;
+     const onSubmitHandler = async (formData) => {
+    try {
+        formData.sectionId = state.selectedSectionId;
 
-                if (isEditing) {
-                    await apiService.update("students", studentData.id, formData);
-                    showToast("Student updated successfully!", "success");
-                } else {
-                    const newStudent = await apiService.create("students", formData);
-                    
-                    // --- THIS IS THE FIX ---
-                    // It checks if student creation was successful before proceeding.
-                    if (!newStudent || !newStudent.id) {
-                        showToast("Could not create student. Please check required fields and network.", "error");
-                        return; // Stop execution if student creation failed
-                    }
-                    // --- END OF FIX ---
+        if (isEditing) {
+            await apiService.update("students", studentData.id, formData);
+            showToast("Student updated successfully!", "success");
+        } else {
+            const newStudent = await apiService.create("students", formData);
 
-                    await apiService.create("users", {
-                        name: newStudent.name,
-                        email: newStudent.email,
-                        password: formData.password,
-                        role: "Student",
-                        studentId: newStudent.id,
-                    });
-                    showToast("Student added successfully!", "success");
-                }
-                await store.refresh("students");
-                closeAnimatedModal(ui.modal);
-                renderStudentTableView();
-            } catch (error) {
-                showToast("Operation failed.", "error");
-                console.error("Form submission error:", error);
+            // --- THIS IS THE FIX ---
+            // It checks if student creation was successful before proceeding.
+            if (!newStudent || !newStudent.id) {
+                showToast("Could not create student. Please check required fields and network.", "error");
+                return; // Stop execution if student creation failed
             }
-        };
+            // --- END OF FIX ---
+
+            await apiService.create("users", {
+                name: newStudent.name,
+                email: newStudent.email,
+                password: formData.password,
+                role: "Student",
+                studentId: newStudent.id,
+            });
+            showToast("Student added successfully!", "success");
+        }
+        await store.refresh("students");
+        closeAnimatedModal(ui.modal);
+        renderStudentTableView();
+    } catch (error) {
+        showToast("Operation failed.", "error");
+        console.error("Form submission error:", error);
+    }
+};
+
 
         const onDeleteHandler = isEditing
             ? async () => {

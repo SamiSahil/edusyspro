@@ -8,12 +8,6 @@ import { store } from '../store.js';
 import { currentUser, ui } from '../ui.js';
 import { renderNoticesPage } from '../pages/notices.js';
 
-// Your API base URL
-const API_BASE_URL = 'https://smsv2-liart.vercel.app';
-
-// Safely compose URLs (ensures single slash between base and path)
-const apiUrl = (path) => `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;
-
 export function getSkeletonLoaderHTML(type = 'table') {
     if (type === 'dashboard') {
         return `
@@ -42,13 +36,11 @@ export function getSkeletonLoaderHTML(type = 'table') {
     `;
 }
 
-// --- THIS FUNCTION WAS REPLACED TO USE FETCH AND YOUR API BASE URL ---
 export async function openAdvancedMessageModal(replyToUserId = null, replyToUserName = null) {
     const classes = store.get('classes') || [];
     const teacherMap = store.getMap('teachers') || new Map();
     const studentsMap = store.getMap('students') || new Map();
 
-    // Get users list robustly from store (fixes Object.values('users') bug)
     let users = [];
     const usersFromStore = store.get('users');
     if (Array.isArray(usersFromStore)) {
@@ -65,17 +57,11 @@ export async function openAdvancedMessageModal(replyToUserId = null, replyToUser
         .map(user => {
             let staffName = user.name || 'Unnamed Staff';
             let staffTargetId = user.id || user.email || user.username;
-
             if (user.role === 'Teacher' && user.teacherId) {
                 const teacherDetails = teacherMap.get(user.teacherId);
-                if (teacherDetails) {
-                    staffName = teacherDetails.name || staffName;
-                    staffTargetId = teacherDetails.id || user.teacherId;
-                } else {
-                    staffTargetId = user.teacherId;
-                }
+                if (teacherDetails) staffName = teacherDetails.name || staffName;
+                staffTargetId = teacherDetails.id || user.teacherId;
             }
-
             return { id: String(staffTargetId), name: staffName, role: user.role };
         });
 
@@ -87,57 +73,34 @@ export async function openAdvancedMessageModal(replyToUserId = null, replyToUser
     }
 
     const groupedOptions = {
-        'Broadcasts': [],
-        'Classes': [],
-        'Direct to Staff': [],
-        'Direct to Student': []
+        'Broadcasts': [], 'Classes': [], 'Direct to Staff': [], 'Direct to Student': []
     };
-
-    // Populate Broadcast options
     if (currentUser.role === 'Admin') {
         groupedOptions['Broadcasts'].push(
-            { value: 'All', label: 'Everyone (All Staff & Students)' },
-            { value: 'Staff', label: 'All Staff Members' },
-            { value: 'Teacher', label: 'All Teachers' },
-            { value: 'Student', label: 'All Students' }
+            { value: 'All', label: 'Everyone (All Staff & Students)' }, { value: 'Staff', label: 'All Staff Members' }, { value: 'Teacher', label: 'All Teachers' }, { value: 'Student', label: 'All Students' }
         );
     }
-
-    // Populate Class options
     const classList = (currentUser.role === 'Teacher') ? classes.filter(c => c.teacherId === currentUser.id) : classes;
     classList.forEach(c => groupedOptions['Classes'].push({ value: `class_${c.id}`, label: c.name }));
-
-    // Populate Direct Message options
     if (currentUser.role === 'Admin') {
         allStaff.forEach(s => groupedOptions['Direct to Staff'].push({ value: s.id, label: `${s.name} (${s.role})` }));
     }
-    if (currentUser.role === 'Teacher' && !isReply) { // Only show admin if not a reply
+    if (currentUser.role === 'Teacher' && !isReply) {
          groupedOptions['Direct to Staff'].push({ value: 'admin', label: 'Admin' });
     }
     if (isReply) {
         groupedOptions['Direct to Student'].push({ value: replyToUserId, label: `${replyToUserName} (Student)` });
     }
 
-    const optionsHtml = Object.entries(groupedOptions)
-        .filter(([_, options]) => options.length > 0)
-        .map(([group, options]) => `<optgroup label="${group}">${options.map(opt => `<option value="${opt.value}" ${isReply && opt.value === replyToUserId ? 'selected' : ''}>${opt.label}</option>`).join('')}</optgroup>`)
-        .join('');
+    const optionsHtml = Object.entries(groupedOptions).filter(([_, options]) => options.length > 0).map(([group, options]) => `<optgroup label="${group}">${options.map(opt => `<option value="${opt.value}" ${isReply && opt.value === replyToUserId ? 'selected' : ''}>${opt.label}</option>`).join('')}</optgroup>`).join('');
 
     const formFields = [
-        { name: 'target', label: 'Recipient', type: 'select', required: true, options: optionsHtml },
-        { name: 'title', label: 'Title / Subject', type: 'text', required: true, value: isReply ? `Re: Your message` : '' },
-        { name: 'content', label: 'Message Content', type: 'textarea', required: true },
+        { name: 'target', label: 'Recipient', type: 'select', required: true, options: optionsHtml }, { name: 'title', label: 'Title / Subject', type: 'text', required: true, value: isReply ? `Re: Your message` : '' }, { name: 'content', label: 'Message Content', type: 'textarea', required: true },
     ];
 
     openFormModal(modalTitle, formFields, async (formData) => {
         const isPrivate = !['All', 'Staff', 'Teacher', 'Student'].includes(formData.target) && !formData.target.startsWith('class_');
-
-        const noticeData = {
-            ...formData,
-            authorId: currentUser.id || currentUser.username,
-            date: new Date().toISOString(),
-            type: isPrivate ? 'private_message' : 'notice'
-        };
+        const noticeData = { ...formData, authorId: currentUser.id || currentUser.username, date: new Date().toISOString(), type: isPrivate ? 'private_message' : 'notice' };
 
         // --- THIS IS THE FIX ---
         // The manual fetch call with the wrong URL has been replaced.
@@ -145,22 +108,19 @@ export async function openAdvancedMessageModal(replyToUserId = null, replyToUser
         const result = await apiService.create('notices', noticeData);
         // --- END OF FIX ---
 
-        if (!result) return;
+        if (!result) return; // Stop if the creation failed
 
         showToast(`Message sent successfully!`, 'success');
-
         if (document.getElementById('notice-list-container')) {
             renderNoticesPage();
         }
     });
 
     if (isReply) {
-         setTimeout(() => {
-            const targetSelect = document.getElementById('target');
-            if (targetSelect) targetSelect.disabled = true;
-        }, 100);
+         setTimeout(() => { const targetSelect = document.getElementById('target'); if (targetSelect) targetSelect.disabled = true; }, 100);
     }
 }
+// --- THE REST OF THE FILE REMAINS THE SAME... ---
 
 export function timeAgo(dateString) {
     const date = new Date(dateString);
