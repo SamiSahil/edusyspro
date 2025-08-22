@@ -704,6 +704,7 @@ export function openFormModal(title, formFields, onSubmit, initialData = {}, onD
     const isEditing = Object.keys(initialData).length > 0;
     let newProfileImageData = null;
 
+    // This check determines if the two-column profile view should be used.
     const isProfileModal = ['student', 'teacher', 'staff'].some(keyword => title.toLowerCase().includes(keyword));
 
     let profileActionsHtml = '';
@@ -717,18 +718,30 @@ export function openFormModal(title, formFields, onSubmit, initialData = {}, onD
             avatarSrc = initialData.profileImage || generateInitialsAvatar(initialData.name);
             profileName = initialData.name;
 
+            // --- START OF MODIFICATION 1: Add specific logic for Staff subtitle ---
             if (config.collectionName === 'students') {
                 subtitleHtml = `<p class="text-slate-400 text-sm">Roll: ${initialData.rollNo || 'N/A'}</p>`;
             } else if (config.collectionName === 'teachers') {
                 subtitleHtml = `<p class="text-blue-400 font-medium">${initialData.subject || 'Teacher'}</p><p class="text-xs text-slate-500">${initialData.email || 'N/A'}</p>`;
-            } else if (config.collectionName === 'users') {
-                subtitleHtml = `<p class="text-blue-400">${initialData.role || 'Staff'}</p>`;
+            } else if (config.collectionName === 'staffs') { // THIS IS THE NEW LOGIC
+                // This displays the job title under the name, matching your desired layout.
+                subtitleHtml = `<p class="text-slate-400">${initialData.jobTitle || 'Staff'}</p>`;
             }
+            // --- END OF MODIFICATION 1 ---
 
             if (onDeleteItem) {
+                // --- START OF MODIFICATION 2: Customize the delete button text ---
+                let deleteButtonText = `Delete ${config.title || 'Item'}`;
+                if (config.collectionName === 'staffs') {
+                    deleteButtonText = 'Delete Staff'; // This provides the exact text from your screenshot.
+                }
+                // --- END OF MODIFICATION 2 ---
+
                 actionButtonsHtml = `
                     <div class="space-y-2 pt-4 border-t border-slate-700">
-                        <button type="button" id="modal-delete-btn" class="w-full text-sm bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-3 rounded-lg flex items-center justify-center gap-2"><i class="fas fa-trash-alt"></i> Delete ${config.title || 'Item'}</button>
+                        <button type="button" id="modal-delete-btn" class="w-full text-sm bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-3 rounded-lg flex items-center justify-center gap-2">
+                            <i class="fas fa-trash-alt"></i> ${deleteButtonText}
+                        </button>
                     </div>`;
             }
         } else {

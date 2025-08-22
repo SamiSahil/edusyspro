@@ -24,12 +24,11 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 
 // --- API ROUTES ---
-
-app.use('/', require('./routes/auth.routes')); // CHANGE from '/'
-app.use('/api/login', require('./routes/auth.routes')); // CHANGE from '/'
+app.use('/', require('./routes/auth.routes')); 
 app.use('/users', require('./routes/user.routes'));
 app.use('/students', require('./routes/student.routes'));
 app.use('/teachers', require('./routes/teacher.routes'));
+app.use('/staffs', require('./routes/staff.routes')); 
 app.use('/subjects', require('./routes/subject.routes'));
 app.use('/sections', require('./routes/section.routes')); 
 app.use('/departments', require('./routes/department.routes'));

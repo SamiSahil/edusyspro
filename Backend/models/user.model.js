@@ -30,7 +30,7 @@ const userSchema = new mongoose.Schema({
         type: String,
     },
     // Link to the detailed student profile
-    studentId: {
+ studentId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Student',
         default: null,
@@ -41,8 +41,16 @@ const userSchema = new mongoose.Schema({
         ref: 'Teacher',
         default: null,
     },
+    // --- ADD THIS NEW SECTION ---
+    // Link to the detailed staff profile
+    staffId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Staff', // This links to the new 'Staff' model
+        default: null,
+    },
+    // ----------------------------
 }, {
-    timestamps: true, // Adds createdAt and updatedAt timestamps
+    timestamps: true,
 });
 
 // Helper to ensure 'id' is returned instead of '_id'
