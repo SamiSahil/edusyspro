@@ -139,12 +139,11 @@ export async function openAdvancedMessageModal(replyToUserId = null, replyToUser
             type: isPrivate ? 'private_message' : 'notice'
         };
 
-        // POST to your hosted API
-        const result = await fetchWithErrorHandling(apiUrl('/api/notices'), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(noticeData)
-        });
+        // --- THIS IS THE FIX ---
+        // The manual fetch call with the wrong URL has been replaced.
+        // We now use the centralized apiService, which constructs the correct URL.
+        const result = await apiService.create('notices', noticeData);
+        // --- END OF FIX ---
 
         if (!result) return;
 

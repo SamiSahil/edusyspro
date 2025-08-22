@@ -1,5 +1,3 @@
-// in frontend/src/pages/teachers.js
-
 import { apiService } from '../apiService.js';
 import { store } from '../store.js';
 import { ui } from '../ui.js';
@@ -71,7 +69,7 @@ export async function renderTeachersPage() {
             pink: 'from-pink-500/10 to-rose-600/20 border-pink-500/20 text-pink-400',
             blue: 'from-blue-500/10 to-cyan-600/20 border-blue-500/20 text-blue-400',
             green: 'from-emerald-500/10 to-teal-600/20 border-emerald-500/20 text-emerald-400',
-            orange: 'from-orange-500/10 to-amber-600/20 border-orange-500/20 text-orange-400'
+            orange: 'from-orange-500/10 to-amber-600/20 border-orange-500/20 text-orange-400',
         };
         const colorKeys = Object.keys(colors);
         const selectedColor = colorKeys[delay % colorKeys.length];
@@ -262,12 +260,13 @@ export async function renderTeachersPage() {
                 } else {
                     const newTeacher = await apiService.create('teachers', formData);
                     
-                    // --- SOLUTION: Check if teacher creation was successful ---
-                    if (!newTeacher) {
-                        showToast("Could not create teacher. Please check network and try again.", "error");
+                    // --- THIS IS THE FIX ---
+                    // It checks if teacher creation was successful before proceeding.
+                    if (!newTeacher || !newTeacher.id) {
+                        showToast("Could not create teacher. Please check required fields and network.", "error");
                         return; // Stop execution if teacher creation failed
                     }
-                    // --- End of Solution ---
+                    // --- END OF FIX ---
 
                     await apiService.create('users', {
                         name: newTeacher.name,
