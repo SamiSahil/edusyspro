@@ -112,7 +112,7 @@ export async function openAdvancedMessageModal(replyToUserId = null, replyToUser
         allStaff.forEach(s => groupedOptions['Direct to Staff'].push({ value: s.id, label: `${s.name} (${s.role})` }));
     }
     if (currentUser.role === 'Teacher' && !isReply) { // Only show admin if not a reply
-         groupedOptions['Direct to Staff'].push({ value: 'admin', label: 'Admin' });
+        groupedOptions['Direct to Staff'].push({ value: 'admin', label: 'Admin' });
     }
     if (isReply) {
         groupedOptions['Direct to Student'].push({ value: replyToUserId, label: `${replyToUserName} (Student)` });
@@ -155,7 +155,7 @@ export async function openAdvancedMessageModal(replyToUserId = null, replyToUser
     });
 
     if (isReply) {
-         setTimeout(() => {
+        setTimeout(() => {
             const targetSelect = document.getElementById('target');
             if (targetSelect) targetSelect.disabled = true;
         }, 100);
@@ -671,9 +671,9 @@ export function openChangePasswordModal() {
 
         // Local check using existing apiService (no network)
         const storedPassword = apiService.users[currentUser.username]?.password;
-        if (storedPassword !== undefined && currentPassword !== storedPassword) { 
-            showToast('Incorrect current password.', 'error'); 
-            return; 
+        if (storedPassword !== undefined && currentPassword !== storedPassword) {
+            showToast('Incorrect current password.', 'error');
+            return;
         }
 
         apiService.users[currentUser.username].password = newPassword;
@@ -718,25 +718,34 @@ export function openFormModal(title, formFields, onSubmit, initialData = {}, onD
             avatarSrc = initialData.profileImage || generateInitialsAvatar(initialData.name);
             profileName = initialData.name;
 
-            // --- START OF MODIFICATION 1: Add specific logic for Staff subtitle ---
             if (config.collectionName === 'students') {
-                subtitleHtml = `<p class="text-slate-400 text-sm">Roll: ${initialData.rollNo || 'N/A'}</p>`;
+                const sectionId = initialData.sectionId?.id || initialData.sectionId;
+                const sectionDetails = store.getMap('sections').get(sectionId);
+                const departmentName = sectionDetails?.subjectId?.departmentId?.name || 'Unassigned';
+                const sectionName = sectionDetails?.name || 'N/A';
+
+                subtitleHtml = `
+                    <p class="text-slate-400 text-sm">Roll: ${initialData.rollNo || 'N/A'}</p>
+                    <p class="text-slate-400 text-xs mt-1">${departmentName} - Section ${sectionName}</p>
+                `;
             } else if (config.collectionName === 'teachers') {
-                subtitleHtml = `<p class="text-blue-400 font-medium">${initialData.subject || 'Teacher'}</p><p class="text-xs text-slate-500">${initialData.email || 'N/A'}</p>`;
-            } else if (config.collectionName === 'staffs') { // THIS IS THE NEW LOGIC
-                // This displays the job title under the name, matching your desired layout.
+                const departmentId = initialData.departmentId?.id || initialData.departmentId;
+                const departmentDetails = store.getMap('departments').get(departmentId);
+                const departmentName = departmentDetails?.name || 'Unassigned';
+
+                subtitleHtml = `
+                    <p class="text-slate-400 text-sm">${initialData.email || 'No email provided'}</p>
+                    <p class="text-slate-400 text-xs mt-1">Department: ${departmentName}</p>
+                `;
+            } else if (config.collectionName === 'staffs') {
                 subtitleHtml = `<p class="text-slate-400">${initialData.jobTitle || 'Staff'}</p>`;
             }
-            // --- END OF MODIFICATION 1 ---
 
             if (onDeleteItem) {
-                // --- START OF MODIFICATION 2: Customize the delete button text ---
                 let deleteButtonText = `Delete ${config.title || 'Item'}`;
                 if (config.collectionName === 'staffs') {
-                    deleteButtonText = 'Delete Staff'; // This provides the exact text from your screenshot.
+                    deleteButtonText = 'Delete Staff';
                 }
-                // --- END OF MODIFICATION 2 ---
-
                 actionButtonsHtml = `
                     <div class="space-y-2 pt-4 border-t border-slate-700">
                         <button type="button" id="modal-delete-btn" class="w-full text-sm bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-3 rounded-lg flex items-center justify-center gap-2">
@@ -853,6 +862,7 @@ export function openFormModal(title, formFields, onSubmit, initialData = {}, onD
         }
     }, { once: true });
 }
+
 
 export function exportToCsv(filename, headers, rows) {
     const sanitizeCell = (cell) => {
