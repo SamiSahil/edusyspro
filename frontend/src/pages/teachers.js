@@ -230,57 +230,69 @@ export async function renderTeachersPage() {
         renderTeacherList(teachersInDept);
     };
 
-    const openTeacherForm = (teacherData = null) => {
-        const isEditing = !!teacherData;
-        const title = isEditing ? `Edit Teacher Profile` : 'Add New Teacher';
-        const formFields = [
-            { name: 'name', label: 'Full Name', type: 'text', required: true },
-            { name: 'email', label: 'Email (will be username)', type: 'email', required: true },
-            { name: 'departmentId', label: 'Primary Department', type: 'select', options: allDepartments.map(d => `<option value="${d.id}" ${teacherData && teacherData.departmentId?.id === d.id ? 'selected' : ''}>${d.name}</option>`).join(''), required: true },
-            { name: 'contact', label: 'Contact', type: 'tel', required: true },
-            { name: 'address', label: 'Address', type: 'textarea' },
-            { name: 'qualifications', label: 'Qualifications', type: 'text' },
-            { name: 'baseSalary', label: 'Base Salary (BDT)', type: 'number' },
-        ];
-        if (!isEditing) { formFields.push({ name: 'password', label: 'Initial Password', type: 'password', required: true }); }
+// in src/pages/teachers.js
 
-        const onSubmit = async (formData) => {
-            if (!isEditing) formData.departmentId = state.selectedDeptId;
-            try {
-                if (isEditing) {
-                    await apiService.update('teachers', teacherData.id, formData);
-                    showToast('Teacher updated successfully!', 'success');
-                } else {
-                    const newTeacher = await apiService.create('teachers', formData);
-                    if (!newTeacher || !newTeacher.id) {
-                        showToast("Could not create teacher.", "error"); return;
-                    }
-                    await apiService.create('users', { name: newTeacher.name, email: newTeacher.email, password: formData.password, role: 'Teacher', teacherId: newTeacher.id });
-                    showToast('Teacher added successfully!', 'success');
+// ... (keep the top of the file and the beginning of the function as is)
+
+const openTeacherForm = (teacherData = null) => {
+    const isEditing = !!teacherData;
+    const title = isEditing ? `Edit Teacher Profile` : 'Add New Teacher';
+    const formFields = [
+        { name: 'name', label: 'Full Name', type: 'text', required: true },
+        { name: 'email', label: 'Email (will be username)', type: 'email', required: true },
+        { name: 'departmentId', label: 'Primary Department', type: 'select', options: allDepartments.map(d => `<option value="${d.id}" ${teacherData && teacherData.departmentId?.id === d.id ? 'selected' : ''}>${d.name}</option>`).join(''), required: true },
+        { name: 'contact', label: 'Contact', type: 'tel', required: true },
+        { name: 'address', label: 'Address', type: 'textarea' },
+        { name: 'qualifications', label: 'Qualifications', type: 'text' },
+        { name: 'baseSalary', label: 'Base Salary (BDT)', type: 'number' },
+    ];
+    if (!isEditing) { formFields.push({ name: 'password', label: 'Initial Password', type: 'password', required: true }); }
+
+    const onSubmit = async (formData) => {
+        // ... (keep this logic the same)
+        if (!isEditing) formData.departmentId = state.selectedDeptId;
+        try {
+            if (isEditing) {
+                await apiService.update('teachers', teacherData.id, formData);
+                showToast('Teacher updated successfully!', 'success');
+            } else {
+                const newTeacher = await apiService.create('teachers', formData);
+                if (!newTeacher || !newTeacher.id) {
+                    showToast("Could not create teacher.", "error"); return;
                 }
+                await apiService.create('users', { name: newTeacher.name, email: newTeacher.email, password: formData.password, role: 'Teacher', teacherId: newTeacher.id });
+                showToast('Teacher added successfully!', 'success');
+            }
+            await store.refresh('teachers');
+            allTeachers = store.get('teachers'); 
+            closeAnimatedModal(ui.modal);
+            mainRender();
+        } catch (error) {
+            showToast("Operation failed.", "error"); console.error("Form submission error:", error);
+        }
+    };
+
+    const onDelete = isEditing ? async () => {
+        // ... (keep this logic the same)
+        showConfirmationModal(`Delete ${teacherData.name}?`, async () => {
+            if (await apiService.remove('teachers', teacherData.id)) {
+                showToast('Teacher deleted.', 'success');
                 await store.refresh('teachers');
-                allTeachers = store.get('teachers'); // Refresh the local data variable
+                allTeachers = store.get('teachers'); 
                 closeAnimatedModal(ui.modal);
                 mainRender();
-            } catch (error) {
-                showToast("Operation failed.", "error"); console.error("Form submission error:", error);
             }
-        };
+        });
+    } : null;
 
-        const onDelete = isEditing ? async () => {
-            showConfirmationModal(`Delete ${teacherData.name}?`, async () => {
-                if (await apiService.remove('teachers', teacherData.id)) {
-                    showToast('Teacher deleted.', 'success');
-                    await store.refresh('teachers');
-                    allTeachers = store.get('teachers'); // Refresh the local data variable
-                    closeAnimatedModal(ui.modal);
-                    mainRender();
-                }
-            });
-        } : null;
+    // --- THIS IS THE FIX ---
+    // We create and pass a config object to tell the modal what it's editing.
+    const modalConfig = { collectionName: 'teachers', title: 'Teacher' };
+    openFormModal(title, formFields, onSubmit, teacherData || {}, onDelete, modalConfig);
+    // ----------------------
+};
 
-        openFormModal(title, formFields, onSubmit, teacherData || {}, onDelete);
-    };
+// ... (the rest of the file remains the same)
 
     const insertDocumentForTeachers = () => { openBulkInsertModal('teachers', 'Teachers', ['name', 'email', 'password', 'contact', 'departmentName'], { name: "Dr. Jane Smith", email: "jane@school.com", password: "password123", contact: "555-1234", departmentName: "CSE" }); };
 

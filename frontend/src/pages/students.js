@@ -584,132 +584,113 @@ export async function renderStudentsPage() {
         });
     };
 
-    // --- Student Form ---
-    // Located in frontend/src/pages/students.js
+   // in src/pages/students.js
 
-    const openStudentForm = (studentData = null) => {
-        const isEditing = !!studentData;
-        const title = isEditing ? `Edit Student Profile` : "Add New Student";
+// ... (keep all the existing code at the top of the file)
 
-        // 1. Get all necessary data from the store
-        const allDepartments = store.get("departments");
-        const allSections = store.get("sections");
+// --- THIS IS THE FUNCTION TO MODIFY ---
+const openStudentForm = (studentData = null) => {
+    const isEditing = !!studentData;
+    const title = isEditing ? `Edit Student Profile` : "Add New Student";
 
-        // 2. Determine the student's current department and section for pre-selection
-        let currentSectionId = studentData?.sectionId?.id || studentData?.sectionId;
-        const currentSection = allSections.find(s => s.id === currentSectionId);
-        let currentDeptId = currentSection?.subjectId?.departmentId?.id;
-
-        // 3. Create the HTML for the department dropdown options
-        const departmentOptionsHtml = allDepartments.map(dept =>
-            `<option value="${dept.id}" ${dept.id === currentDeptId ? 'selected' : ''}>${dept.name}</option>`
+    // ... (keep the logic for building formFields exactly as it is)
+    const allDepartments = store.get("departments");
+    const allSections = store.get("sections");
+    let currentSectionId = studentData?.sectionId?.id || studentData?.sectionId;
+    const currentSection = allSections.find(s => s.id === currentSectionId);
+    let currentDeptId = currentSection?.subjectId?.departmentId?.id;
+    const departmentOptionsHtml = allDepartments.map(dept =>
+        `<option value="${dept.id}" ${dept.id === currentDeptId ? 'selected' : ''}>${dept.name}</option>`
+    ).join('');
+    const sectionOptionsHtml = allSections
+        .filter(section => section.subjectId?.departmentId?.id === currentDeptId)
+        .map(section =>
+            `<option value="${section.id}" ${section.id === currentSectionId ? 'selected' : ''}>
+            ${section.subjectId.name} - Section ${section.name}
+        </option>`
         ).join('');
-
-        // 4. Create the HTML for the section dropdown (initially filtered by the current department)
-        const sectionOptionsHtml = allSections
-            .filter(section => section.subjectId?.departmentId?.id === currentDeptId)
-            .map(section =>
-                `<option value="${section.id}" ${section.id === currentSectionId ? 'selected' : ''}>
-                ${section.subjectId.name} - Section ${section.name}
-            </option>`
-            ).join('');
-
-        // 5. Define the base form fields
-        const formFields = [
-            { name: "name", label: "Full Name", type: "text", required: true },
-            { name: "email", label: "Email", type: "email", required: true },
-            { name: "rollNo", label: "Roll Number", type: "text", required: true },
-            { name: "guardianName", label: "Guardian Name", type: "text", required: true },
-            // Department and Section fields will be inserted here
-            { name: "contact", label: "Contact Number", type: "tel", required: true },
-            { name: "dateOfBirth", label: "Date of Birth", type: "date" },
-            { name: "gender", label: "Gender", type: "select", options: `<option>Male</option><option>Female</option><option>Other</option>` },
-            { name: "address", label: "Address", type: "textarea" },
-        ];
-
-        // 6. Find the position after "Guardian Name" and insert the new fields
-        const guardianIndex = formFields.findIndex(f => f.name === 'guardianName');
-        if (guardianIndex !== -1) {
-            formFields.splice(guardianIndex + 1, 0,
-                { name: 'department', label: 'Department', type: 'select', id: 'department-selector', options: departmentOptionsHtml },
-                { name: 'sectionId', label: 'Section', type: 'select', id: 'sectionId', options: sectionOptionsHtml, required: true }
-            );
-        }
-
-        if (!isEditing) {
-            formFields.push({ name: "password", label: "Initial Password", type: "password", required: true });
-        }
-
-        const onSubmitHandler = async (formData) => {
-            // The 'department' field is a helper, so we remove it before saving
-            delete formData.department;
-
-            try {
-                if (isEditing) {
-                    await apiService.update("students", studentData.id, formData);
-                    showToast("Student updated successfully!", "success");
-                } else {
-                    const newStudent = await apiService.create("students", formData);
-                    if (!newStudent || !newStudent.id) {
-                        showToast("Could not create student.", "error");
-                        return;
-                    }
-                    await apiService.create("users", {
-                        name: newStudent.name, email: newStudent.email, password: formData.password,
-                        role: "Student", studentId: newStudent.id,
-                    });
-                    showToast("Student added successfully!", "success");
+    const formFields = [
+        { name: "name", label: "Full Name", type: "text", required: true },
+        { name: "email", label: "Email", type: "email", required: true },
+        { name: "rollNo", label: "Roll Number", type: "text", required: true },
+        { name: "guardianName", label: "Guardian Name", type: "text", required: true },
+        { name: 'department', label: 'Department', type: 'select', id: 'department-selector', options: departmentOptionsHtml },
+        { name: 'sectionId', label: 'Section', type: 'select', id: 'sectionId', options: sectionOptionsHtml, required: true },
+        { name: "contact", label: "Contact Number", type: "tel", required: true },
+        { name: "dateOfBirth", label: "Date of Birth", type: "date" },
+        { name: "gender", label: "Gender", type: "select", options: `<option>Male</option><option>Female</option><option>Other</option>` },
+        { name: "address", label: "Address", type: "textarea" },
+    ];
+     if (!isEditing) {
+        formFields.push({ name: "password", label: "Initial Password", type: "password", required: true });
+    }
+    // ... (keep the onSubmitHandler and onDeleteHandler logic as is)
+    const onSubmitHandler = async (formData) => {
+        delete formData.department;
+        try {
+            if (isEditing) {
+                await apiService.update("students", studentData.id, formData);
+                showToast("Student updated successfully!", "success");
+            } else {
+                const newStudent = await apiService.create("students", formData);
+                if (!newStudent || !newStudent.id) {
+                    showToast("Could not create student.", "error");
+                    return;
                 }
-                await store.refresh("students");
-                closeAnimatedModal(ui.modal);
-                mainRender(); // This assumes you have a mainRender() function; otherwise, use renderStudentsPage()
-            } catch (error) {
-                showToast("Operation failed.", "error");
-                console.error("Form submission error:", error);
-            }
-        };
-
-        const onDeleteHandler = isEditing
-            ? async () => {
-                showConfirmationModal(`Delete ${studentData.name}? This will also delete their user account.`, async () => {
-                    try {
-                        await apiService.remove("students", studentData.id);
-                        showToast("Student deleted successfully", "success");
-                        closeAnimatedModal(ui.modal);
-                        await store.refresh("students");
-                        renderStudentTableView();
-                    } catch (error) {
-                        console.error(error);
-                        showToast("Failed to delete student", "error");
-                    }
+                await apiService.create("users", {
+                    name: newStudent.name, email: newStudent.email, password: formData.password,
+                    role: "Student", studentId: newStudent.id,
                 });
+                showToast("Student added successfully!", "success");
             }
-            : null;
-
-        // 7. Call the generic modal function with our dynamically created form
-        openFormModal(title, formFields, onSubmitHandler, studentData || {}, onDeleteHandler);
-
-        // 8. IMPORTANT: After the modal is rendered, attach the event listener for cascading logic
-        setTimeout(() => {
-            const departmentSelect = document.getElementById('department-selector');
-            const sectionSelect = document.getElementById('sectionId');
-
-            if (departmentSelect && sectionSelect) {
-                departmentSelect.addEventListener('change', (e) => {
-                    const selectedDeptId = e.target.value;
-
-                    // Filter sections based on the selected department
-                    const relevantSections = allSections.filter(section => section.subjectId?.departmentId?.id === selectedDeptId);
-
-                    // Regenerate the options for the section dropdown
-                    sectionSelect.innerHTML = relevantSections.map(section =>
-                        `<option value="${section.id}">${section.subjectId.name} - Section ${section.name}</option>`
-                    ).join('');
-                });
-            }
-        }, 100); // A small delay ensures the modal elements are in the DOM
+            await store.refresh("students");
+            closeAnimatedModal(ui.modal);
+            mainRender(); 
+        } catch (error) {
+            showToast("Operation failed.", "error");
+            console.error("Form submission error:", error);
+        }
     };
+    const onDeleteHandler = isEditing
+        ? async () => {
+            showConfirmationModal(`Delete ${studentData.name}? This will also delete their user account.`, async () => {
+                try {
+                    await apiService.remove("students", studentData.id);
+                    showToast("Student deleted successfully", "success");
+                    closeAnimatedModal(ui.modal);
+                    await store.refresh("students");
+                    renderStudentTableView();
+                } catch (error) {
+                    console.error(error);
+                    showToast("Failed to delete student", "error");
+                }
+            });
+        }
+        : null;
 
+    // --- THIS IS THE FIX ---
+    // We create and pass a config object so the modal knows it's for a 'student'.
+    const modalConfig = { collectionName: 'students', title: 'Student' };
+    openFormModal(title, formFields, onSubmitHandler, studentData || {}, onDeleteHandler, modalConfig);
+    // -------------------------
+
+    // ... (keep the setTimeout for event listeners exactly as it is)
+    setTimeout(() => {
+        const departmentSelect = document.getElementById('department-selector');
+        const sectionSelect = document.getElementById('sectionId');
+        if (departmentSelect && sectionSelect) {
+            departmentSelect.addEventListener('change', (e) => {
+                const selectedDeptId = e.target.value;
+                const relevantSections = allSections.filter(section => section.subjectId?.departmentId?.id === selectedDeptId);
+                sectionSelect.innerHTML = relevantSections.map(section =>
+                    `<option value="${section.id}">${section.subjectId.name} - Section ${section.name}</option>`
+                ).join('');
+            });
+        }
+    }, 100);
+};
+
+// ... (keep all other functions in the file, like mainRender, etc.)
     // --- Bulk Insert Function ---
     const insertDocument = () => {
         openBulkInsertModal(
