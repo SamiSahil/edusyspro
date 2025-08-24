@@ -144,34 +144,30 @@ function renderGenericNoticeList() {
     attachNoticeActionListeners();
 }
 
+// in frontend/src/pages/notices.js
+
+// ... (keep all other existing functions like renderNoticesPage, etc., as they are)
+
+
+// --- REPLACE THE OLD FUNCTION WITH THIS NEW VERSION ---
 export function createPremiumNoticeCard(notice) {
     const allUsersMap = new Map(store.get('users').map(u => [u.id, u]));
     allUsersMap.set(currentUser.id, currentUser);
-    const author = allUsersMap.get(notice.authorId) || { name: 'School Admin', profileImage: null, role: 'Admin' };
-    // Define the available reactions and their emojis
-    const reactionEmojis = {
-        like: '👍',
-        heart: '❤️',
-        haha: '😂',
-        crying: '😢'
-    };
-    
-    // Group reactions by type to get counts and tooltips
-    const reactionsByType = (notice.reactions || []).reduce((acc, reaction) => {
-        if (!acc[reaction.type]) {
-            acc[reaction.type] = [];
-        }
+    const author = allUsersMap.get(notice.authorId) || { name: 'School Admin', profileImage: null };
+
+    // Group reactions by emoji to get counts and user lists
+    const reactionsGrouped = (notice.reactions || []).reduce((acc, reaction) => {
         const user = allUsersMap.get(reaction.userId.toString());
         if (user) {
+            if (!acc[reaction.type]) {
+                acc[reaction.type] = [];
+            }
             acc[reaction.type].push(user.name);
         }
         return acc;
     }, {});
 
-    // Check the current user's reaction
-    const myReaction = (notice.reactions || []).find(r => r.userId.toString() === currentUser.id);
-
-    // ... (the ribbon logic remains the same)
+    // ... (ribbon logic remains the same as before) ...
     let ribbonContent;
     if (notice.type === 'private_message') {
         ribbonContent = `<div class="card-ribbon bg-purple-500/20 text-purple-400">Private Message</div>`;
@@ -192,58 +188,70 @@ export function createPremiumNoticeCard(notice) {
     let reactionSectionHtml = '';
     if (notice.type === 'notice') {
         reactionSectionHtml = `
-            <div class="flex items-center justify-between mt-5 pt-4 border-t border-slate-700/50">
-                <!-- Reaction Buttons/Display -->
-                <div class="flex items-center gap-2">
-                    ${Object.entries(reactionEmojis).map(([type, emoji]) => {
-                        const reactors = reactionsByType[type] || [];
-                        const count = reactors.length;
-                        const isActive = myReaction?.type === type;
-                        const tooltip = count > 0 ? `Reacted by: ${reactors.join(', ')}` : `React with ${type}`;
-                        
-                        return `
-                        <button 
-                            class="reaction-btn ${isActive ? 'active' : ''}" 
-                            data-id="${notice.id}" 
-                            data-type="${type}"
-                            title="${tooltip}"
-                        >
+            <div class="mt-4 pt-4 border-t border-slate-700/50">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <!-- Display existing reactions -->
+                    ${Object.entries(reactionsGrouped).map(([emoji, users]) => `
+                        <button class="existing-reaction-btn" title="Reacted by: ${users.join(', ')}" data-users="${users.join(', ')}" data-emoji="${emoji}">
                             <span class="text-lg">${emoji}</span>
-                            <span class="font-semibold text-sm">${count}</span>
+                            <span class="font-semibold text-sm">${users.length}</span>
                         </button>
-                        `;
-                    }).join('')}
-                </div>
-                
-                <!-- Author Info -->
-                <div class="flex items-center gap-3 text-right">
-                     <div>
-                        <p class="text-sm font-medium text-slate-300">${author.name}</p>
-                        <p class="text-xs text-slate-500">${timeAgo(notice.date)}</p>
+                    `).join('')}
+
+                    <!-- The 'Add Reaction' button -->
+                    <div class="relative">
+                        <button class="add-reaction-btn" title="Add Reaction" data-id="${notice.id}">
+                            <i class="far fa-smile"></i>
+                            <i class="fas fa-plus"></i>
+                        </button>
+                        <!-- The emoji picker will be injected here by the script -->
+                        <div class="emoji-picker-container"></div>
                     </div>
-                    <img src="${author.profileImage || generateInitialsAvatar(author.name)}" alt="${author.name}" class="w-9 h-9 rounded-full object-cover">
                 </div>
             </div>
+            
             <style>
-                .reaction-btn {
-                    padding: 6px 12px;
+                .existing-reaction-btn, .add-reaction-btn {
+                    padding: 4px 10px;
                     border-radius: 20px;
                     background-color: rgba(71, 85, 105, 0.4);
-                    border: 1px solid transparent;
+                    border: 1px solid rgba(147, 197, 253, 0.4);
                     display: flex;
                     align-items: center;
                     gap: 6px;
                     transition: all 0.2s ease-in-out;
                     color: #d1d5db;
                 }
-                .reaction-btn:hover {
-                    background-color: rgba(71, 85, 105, 0.7);
-                    border-color: rgba(147, 197, 253, 0.4);
+                .existing-reaction-btn:hover {
+                     background-color: rgba(99, 102, 241, 0.3);
                 }
-                .reaction-btn.active {
-                    background-color: rgba(99, 102, 241, 0.3);
-                    border-color: rgba(129, 140, 248, 1);
-                    color: white;
+                .add-reaction-btn {
+                    padding: 4px 6px;
+                    position: relative;
+                }
+                .add-reaction-btn:hover {
+                    transform: scale(1.1);
+                }
+                .add-reaction-btn .fa-plus {
+                    font-size: 8px;
+                    position: absolute;
+                    bottom: 0px;
+                    right: 0px;
+                    background: #4a5568;
+                    border-radius: 50%;
+                    padding: 2px;
+                }
+                .emoji-picker-container {
+                    position: absolute;
+                    bottom: 120%;
+                    left: 0;
+                    z-index: 10;
+                }
+                /* Style for the emoji picker itself */
+                emoji-picker {
+                    --background: #2d3748; /* bg-slate-800 */
+                    --border-color: #4a5568; /* bg-slate-600 */
+                    --indicator-color: #6366f1; /* indigo-500 */
                 }
             </style>
         `;
@@ -255,17 +263,32 @@ export function createPremiumNoticeCard(notice) {
         <div class="p-5">
             <div class="flex justify-between items-start gap-2">
                 <h4 class="text-xl font-bold text-white">${notice.title}</h4>
-                <div class="card-actions">${actionButtons}</div>
+                <div class="flex items-center gap-4">
+                     <div class="text-right">
+                        <p class="text-sm font-medium text-slate-300">${author.name}</p>
+                        <p class="text-xs text-slate-500">${timeAgo(notice.date)}</p>
+                    </div>
+                    <img src="${author.profileImage || generateInitialsAvatar(author.name)}" alt="${author.name}" class="w-9 h-9 rounded-full object-cover">
+                    <div class="card-actions">${actionButtons}</div>
+                </div>
             </div>
-            <p class="text-xs text-slate-400 mb-4">${new Date(notice.date).toLocaleString()}</p>
-            <p class="text-slate-300 whitespace-pre-wrap">${notice.content}</p>
+            <p class="text-slate-300 whitespace-pre-wrap mt-2">${notice.content}</p>
             ${reactionSectionHtml}
         </div>
     </div>`;
 }
 
-// --- THIS IS THE UPDATED EVENT LISTENER FUNCTION ---
+
+// --- REPLACE THE OLD LISTENER FUNCTION WITH THIS ENTIRE NEW BLOCK ---
 export function attachNoticeActionListeners() {
+    // --- Close any open emoji picker when clicking outside ---
+    document.body.addEventListener('click', (e) => {
+        if (!e.target.closest('.add-reaction-btn') && !e.target.closest('emoji-picker')) {
+            document.querySelectorAll('.emoji-picker-container').forEach(c => c.innerHTML = '');
+        }
+    }, true); // Use capture phase to ensure it runs first
+
+    // --- Delete Button Listener (remains the same) ---
     document.querySelectorAll('.delete-btn').forEach(btn => {
         btn.onclick = () => showConfirmationModal('Are you sure you want to delete this notice?', async () => {
             if (await apiService.remove('notices', btn.dataset.id)) {
@@ -275,24 +298,57 @@ export function attachNoticeActionListeners() {
         });
     });
 
-    const handleReaction = async (event) => {
-        const button = event.currentTarget;
-        const noticeId = button.dataset.id;
-        const reactionType = button.dataset.type;
+    // --- 'Add Reaction' Button Listener ---
+    document.querySelectorAll('.add-reaction-btn').forEach(btn => {
+        btn.onclick = (event) => {
+            event.stopPropagation(); // Prevents the body click listener from firing immediately
+            const container = btn.nextElementSibling;
 
-        button.disabled = true;
-        
-        const updatedNotice = await apiService.reactToNotice(noticeId, reactionType);
+            // If picker is already open, close it. Otherwise, open a new one.
+            if (container.querySelector('emoji-picker')) {
+                container.innerHTML = '';
+                return;
+            }
+            // Close all other pickers
+            document.querySelectorAll('.emoji-picker-container').forEach(c => c.innerHTML = '');
 
-        if (updatedNotice) {
-            await store.refresh('notices');
-            renderNoticesPage();
-        } else {
-            showToast('Action failed. Please try again.', 'error');
-            button.disabled = false;
-        }
-    };
-    document.querySelectorAll('.reaction-btn').forEach(btn => {
-        btn.onclick = handleReaction;
+            const noticeId = btn.dataset.id;
+            const picker = document.createElement('emoji-picker');
+            
+            // Listen for an emoji to be selected from the picker
+            picker.addEventListener('emoji-click', async (e) => {
+                const selectedEmoji = e.detail.unicode;
+                container.innerHTML = ''; // Close the picker immediately
+
+                const result = await apiService.reactToNotice(noticeId, selectedEmoji);
+                if (result) {
+                    await store.refresh('notices');
+                    renderNoticesPage(); // Re-render everything with the new reaction
+                }
+            });
+            container.appendChild(picker);
+        };
+    });
+    
+    // --- Existing Reaction Button Listener (to show who reacted) ---
+    document.querySelectorAll('.existing-reaction-btn').forEach(btn => {
+        btn.onclick = () => {
+            const users = btn.dataset.users.split(',');
+            const emoji = btn.dataset.emoji;
+            
+            // Use the generic modal to display the list of users
+            ui.modalTitle.textContent = `Reacted with ${emoji}`;
+            ui.modalBody.innerHTML = `
+                <div class="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
+                    ${users.map(name => `<p class="p-2 bg-slate-700 rounded-md text-white">${name}</p>`).join('')}
+                </div>
+            `;
+            
+            // A simple way to show the modal without a form
+            const modalContent = ui.modal.querySelector('.modal-content');
+            modalContent.classList.remove('!max-w-4xl'); // Ensure it's not extra wide
+            ui.modal.style.display = 'flex';
+            setTimeout(() => ui.modal.classList.add('show'), 10);
+        };
     });
 }

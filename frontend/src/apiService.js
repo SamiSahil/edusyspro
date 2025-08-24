@@ -155,7 +155,7 @@ export const apiService = (() => {
         }
     };
     
-    const reactToNotice = async (noticeId, reactionType) => {
+      const reactToNotice = async (noticeId, reactionType) => {
         const url = `${API_BASE_URL}/notices/${noticeId}/react`;
         try {
             const response = await fetch(url, {
@@ -163,7 +163,7 @@ export const apiService = (() => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     userId: currentUser.id, // The ID of the currently logged-in user
-                    reactionType: reactionType // 'like' or 'dislike'
+                    reactionType: reactionType // e.g., 'like' or 'heart'
                 }),
             });
             if (!response.ok) throw new Error(`Network response was not ok: ${response.statusText}`);
@@ -174,6 +174,7 @@ export const apiService = (() => {
             return null;
         }
     };
+
     
     const getResultsForExam = (examId) => Promise.resolve([]);
     const saveResults = (examId, resultsData) => Promise.resolve({ success: true });
